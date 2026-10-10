@@ -1,5 +1,5 @@
 import { brushMask } from '../resources'
-import { actions, setState, useStore } from '../store'
+import { actions, beginBrushEdit, setState, useStore } from '../store'
 import { DEFAULT_KEY, type ColorKey, type Layer, type Placement, type Popout } from '../types'
 import { AdjustControls, Section, Slider } from './Controls'
 
@@ -40,6 +40,7 @@ export function LayerProps() {
     if (patch.mode === 'line') setState({ tool: 'move' })
   }
   const fillBrush = (fill: boolean) => {
+    beginBrushEdit(layer.id)
     const mask = brushMask(layer.id, true)
     if (!mask) return
     const ctx = mask.getContext('2d')!

@@ -1,7 +1,7 @@
 import { initBuiltinFrames, loadCustomFrames } from './frames/registry'
 import { renderToken } from './render/compose'
-import { canvasBlob, decodeImage, disposeLayer, layerRes, makeCanvas, makeThumb } from './resources'
-import { actions, getState, initialFrame, setState, subscribe } from './store'
+import { canvasBlob, decodeImage, layerRes, makeCanvas, makeThumb } from './resources'
+import { actions, getState, initialFrame, resetHistory, setState, subscribe } from './store'
 import { db } from './storage/db'
 import { DEFAULT_ADJUST, type ExportFormat, type FrameState, type Layer } from './types'
 
@@ -49,13 +49,13 @@ export async function addFiles(files: Iterable<File>) {
   }
 }
 
+// As imagens da camada não são liberadas aqui: o histórico ainda pode
+// restaurá-la, e libera sozinho o que deixar de ser alcançável.
 export function deleteLayer(id: string) {
   actions.removeLayer(id)
-  disposeLayer(id)
 }
 
 export function newProject() {
-  for (const l of getState().layers) disposeLayer(l.id)
   setState({ layers: [], selectedId: null, tool: 'move', frame: initialFrame() })
 }
 
@@ -136,6 +136,7 @@ export function initApp() {
     try {
       await loadCustomFrames()
       await loadProject()
+      resetHistory() // carregar o projeto salvo não é um passo desfazível
     } catch (err) {
       console.warn('Armazenamento local indisponível; nada será salvo', err)
     }

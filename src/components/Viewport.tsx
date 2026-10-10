@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { applyLayerTransform, layerSize, renderToken } from '../render/compose'
 import { brushMask, layerRes } from '../resources'
-import { actions, getState, setState, useStore, type AppState } from '../store'
+import { actions, beginBrushEdit, getState, setState, useStore, type AppState } from '../store'
 import { DEFAULT_KEY, type Layer } from '../types'
 
 interface Point {
@@ -191,6 +191,7 @@ export function Viewport() {
       return
     }
     if (s.tool === 'brush' && layer) {
+      beginBrushEdit(layer.id)
       paint(layer, p, p, s.brushSize, s.brushErase)
       drag.current = { kind: 'brush', last: p }
       actions.touch()

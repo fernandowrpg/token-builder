@@ -4,7 +4,7 @@ import { LayerProps } from './components/LayerProps'
 import { LayersPanel } from './components/LayersPanel'
 import { Viewport } from './components/Viewport'
 import { addFiles, deleteLayer, exportToken, initApp, newProject } from './project'
-import { actions, getState, setState, useStore } from './store'
+import { actions, getState, redo, setState, undo, useStore } from './store'
 import type { ExportFormat } from './types'
 
 const SIZES = [140, 256, 280, 400, 512, 1024, 2048]
@@ -24,6 +24,12 @@ function TopBar() {
         }}
       >
         Novo token
+      </button>
+      <button title="Desfazer (Ctrl+Z)" onClick={undo}>
+        ↶
+      </button>
+      <button title="Refazer (Ctrl+Y)" onClick={redo}>
+        ↷
       </button>
       <div className="spacer" />
       {frameScale < 1 && (
@@ -72,6 +78,16 @@ export function App() {
       if (files.length && !isTyping(e.target)) addFiles(files)
     }
     const onKey = (e: KeyboardEvent) => {
+      const k = e.key.toLowerCase()
+      if ((e.ctrlKey || e.metaKey) && (k === 'z' || k === 'y')) {
+        // em campos de texto vale o desfazer nativo da digitação
+        const t = e.target
+        if (t instanceof HTMLInputElement && (t.type === 'text' || t.type === 'search')) return
+        e.preventDefault()
+        if (k === 'y' || e.shiftKey) redo()
+        else undo()
+        return
+      }
       if (isTyping(e.target)) return
       const s = getState()
       const layer = s.layers.find((l) => l.id === s.selectedId)
