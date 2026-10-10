@@ -1,4 +1,4 @@
-import type { Adjust } from '../types'
+import type { Adjust, ColorKey } from '../types'
 
 // Ajuste de cor por camada feito em um único passe de shader, em vez de
 // ctx.filter: funciona igual em todos os navegadores e permite "colorir".
@@ -17,6 +17,8 @@ varying vec2 vUv;
 uniform sampler2D uTex;
 uniform float uHue, uSat, uBright, uContrast, uTintAmount;
 uniform vec2 uTint; // matiz e saturação da cor de tingimento
+uniform vec3 uKey; // cor removida
+uniform vec2 uKeyRange; // distâncias de cor em que a remoção começa e termina
 
 vec3 rgb2hsl(vec3 c) {
   float mx = max(c.r, max(c.g, c.b));
@@ -50,7 +52,8 @@ void main() {
   c = mix(c, hsl2rgb(vec3(uTint.x, uTint.y, hsl.z)), uTintAmount);
   c = (c * uBright - 0.5) * uContrast + 0.5;
   c = clamp(c, 0.0, 1.0);
-  gl_FragColor = vec4(c * t.a, t.a);
+  float a = t.a * smoothstep(uKeyRange.x, uKeyRange.y, distance(t.rgb, uKey) / 1.732);
+  gl_FragColor = vec4(c * a, a);
 }`
 
 interface Gl {
@@ -88,18 +91,20 @@ function init(): Gl | null {
   gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0)
   gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false)
   const uniforms: Gl['uniforms'] = {}
-  for (const name of ['uHue', 'uSat', 'uBright', 'uContrast', 'uTintAmount', 'uTint'])
+  for (const name of ['uHue', 'uSat', 'uBright', 'uContrast', 'uTintAmount', 'uTint', 'uKey', 'uKeyRange'])
     uniforms[name] = gl.getUniformLocation(prog, name)
   // contexto perdido: recria tudo na próxima chamada
   canvas.addEventListener('webglcontextlost', () => (ctx = undefined))
   return { canvas, gl, uniforms, textures: new WeakMap() }
 }
 
-function hueSat(hex: string): [number, number] {
+function rgb(hex: string): [number, number, number] {
   const n = parseInt(hex.slice(1), 16)
-  const r = ((n >> 16) & 255) / 255
-  const g = ((n >> 8) & 255) / 255
-  const b = (n & 255) / 255
+  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]
+}
+
+function hueSat(hex: string): [number, number] {
+  const [r, g, b] = rgb(hex)
   const mx = Math.max(r, g, b)
   const mn = Math.min(r, g, b)
   const d = mx - mn
@@ -121,13 +126,14 @@ export function releaseTexture(source: HTMLCanvasElement) {
 }
 
 /**
- * Aplica os ajustes em `source` e grava o resultado em `target` (criado se
+ * Aplica os ajustes (e a remoção de cor `key`, se houver) em `source` e grava o resultado em `target` (criado se
  * ausente). Devolve null quando WebGL não está disponível.
  */
 export function applyAdjust(
   source: HTMLCanvasElement,
   a: Adjust,
   target?: HTMLCanvasElement,
+  key?: ColorKey,
 ): HTMLCanvasElement | null {
   if (ctx === undefined) ctx = init()
   if (!ctx || ctx.gl.isContextLost()) return null
@@ -160,6 +166,9 @@ export function applyAdjust(
   gl.uniform1f(uniforms.uContrast, a.contrast)
   gl.uniform1f(uniforms.uTintAmount, a.tintAmount)
   gl.uniform2fv(uniforms.uTint, hueSat(a.tint))
+  gl.uniform3fv(uniforms.uKey, key ? rgb(key.color) : [0, 0, 0])
+  // sem chave, o intervalo negativo deixa o alfa intacto
+  gl.uniform2f(uniforms.uKeyRange, key ? key.tolerance : -2, key ? key.tolerance + key.softness + 0.001 : -1)
   gl.clearColor(0, 0, 0, 0)
   gl.clear(gl.COLOR_BUFFER_BIT)
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)

@@ -1,6 +1,6 @@
 import { brushMask } from '../resources'
 import { actions, setState, useStore } from '../store'
-import type { Layer, Placement, Popout } from '../types'
+import { DEFAULT_KEY, type ColorKey, type Layer, type Placement, type Popout } from '../types'
 import { AdjustControls, Section, Slider } from './Controls'
 
 const PLACEMENTS: [Placement, string][] = [
@@ -33,6 +33,8 @@ export function LayerProps() {
   if (!layer) return <p className="hint">Selecione uma camada para editar suas propriedades.</p>
 
   const set = (patch: Partial<Layer>) => actions.updateLayer(layer.id, patch)
+  const key = layer.key ?? DEFAULT_KEY
+  const setKey = (patch: Partial<ColorKey>) => set({ key: { ...key, ...patch } })
   const setPopout = (patch: Partial<Popout>) => {
     set({ popout: { ...layer.popout, ...patch } })
     if (patch.mode === 'line') setState({ tool: 'move' })
@@ -149,6 +151,59 @@ export function LayerProps() {
           )}
         </Section>
       )}
+
+      <Section title="Remover fundo">
+        <div className="segmented">
+          <button className={key.contiguous ? 'on' : ''} onClick={() => setKey({ contiguous: true })}>
+            Só o fundo
+          </button>
+          <button className={key.contiguous ? '' : 'on'} onClick={() => setKey({ contiguous: false })}>
+            Cor na imagem inteira
+          </button>
+        </div>
+        <p className="hint">
+          {key.contiguous
+            ? 'Clique em cada área de fundo. A remoção se espalha a partir do clique e para no contorno do personagem.'
+            : 'Remove a cor escolhida em toda a imagem, inclusive dentro do personagem.'}
+        </p>
+        <div className="row">
+          <button
+            className={tool === 'pick' ? 'primary' : ''}
+            onClick={() => setState({ tool: tool === 'pick' ? 'move' : 'pick' })}
+          >
+            {tool !== 'pick' ? 'Conta-gotas' : key.contiguous ? 'Concluir' : 'Clique na cor…'}
+          </button>
+          {key.contiguous ? (
+            <button className="small" disabled={!key.seeds?.length} onClick={() => setKey({ seeds: [] })}>
+              Limpar {key.seeds?.length ?? 0} ponto(s)
+            </button>
+          ) : (
+            <input type="color" value={key.color} onChange={(e) => setKey({ color: e.target.value, enabled: true })} />
+          )}
+          <label className="check">
+            <input type="checkbox" checked={key.enabled} onChange={(e) => setKey({ enabled: e.target.checked })} />
+            Ativo
+          </label>
+        </div>
+        <Slider
+          label="Intensidade"
+          value={key.tolerance * 100}
+          min={0}
+          max={100}
+          def={15}
+          unit="%"
+          onChange={(v) => setKey({ tolerance: v / 100 })}
+        />
+        <Slider
+          label="Suavização"
+          value={key.softness * 100}
+          min={0}
+          max={50}
+          def={8}
+          unit="%"
+          onChange={(v) => setKey({ softness: v / 100 })}
+        />
+      </Section>
 
       <Section title="Enquadramento">
         <Slider

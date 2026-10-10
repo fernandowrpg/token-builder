@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { applyLayerTransform, layerSize, renderToken } from '../render/compose'
 import { brushMask, layerRes } from '../resources'
-import { actions, getState, useStore, type AppState } from '../store'
-import type { Layer } from '../types'
+import { actions, getState, setState, useStore, type AppState } from '../store'
+import { DEFAULT_KEY, type Layer } from '../types'
 
 interface Point {
   x: number
@@ -13,16 +13,32 @@ type Drag = { kind: 'move'; start: Point; x: number; y: number } | { kind: 'brus
 
 const selectedLayer = (s: AppState) => s.layers.find((l) => l.id === s.selectedId) ?? null
 
-function hit(layer: Layer, p: Point) {
+/** Ponto do canvas → posição na imagem da camada, de 0 a 1 em cada eixo. */
+function toImage(layer: Layer, p: Point) {
   const src = layerRes.get(layer.id)?.source
-  if (!src || !layer.visible) return false
+  if (!src) return null
   const { w, h } = layerSize(layer, src.width, src.height, 1)
   const a = (-layer.rotation * Math.PI) / 180
   const dx = p.x - layer.x
   const dy = p.y - layer.y
   const lx = dx * Math.cos(a) - dy * Math.sin(a)
   const ly = dx * Math.sin(a) + dy * Math.cos(a)
-  return Math.abs(lx) <= w / 2 && Math.abs(ly) <= h / 2
+  return { u: (layer.flipX ? -lx : lx) / w + 0.5, v: ly / h + 0.5, src }
+}
+
+function hit(layer: Layer, p: Point) {
+  const at = layer.visible && toImage(layer, p)
+  return !!at && at.u >= 0 && at.u <= 1 && at.v >= 0 && at.v <= 1
+}
+
+/** Cor do pixel original da camada sob o ponto; null fora dela ou em área transparente. */
+function pickColor(layer: Layer, p: Point) {
+  const at = toImage(layer, p)
+  if (!at || at.u < 0 || at.u >= 1 || at.v < 0 || at.v >= 1) return null
+  const x = Math.floor(at.u * at.src.width)
+  const y = Math.floor(at.v * at.src.height)
+  const [r, g, b, alpha] = at.src.getContext('2d')!.getImageData(x, y, 1, 1).data
+  return alpha ? '#' + [r, g, b].map((c) => c.toString(16).padStart(2, '0')).join('') : null
 }
 
 /** Pinta (ou apaga) um traço na máscara de transposição, em coordenadas do canvas. */
@@ -162,6 +178,18 @@ export function Viewport() {
     const s = getState()
     const p = toPoint(e)
     let layer = selectedLayer(s)
+    if (s.tool === 'pick' && layer) {
+      const at = toImage(layer, p)
+      const color = pickColor(layer, p)
+      if (at && color) {
+        const key = { ...(layer.key ?? DEFAULT_KEY), color, enabled: true }
+        // no modo "só o fundo" cada clique soma uma área, então a ferramenta continua ativa
+        if (key.contiguous) key.seeds = [...(key.seeds ?? []), { u: at.u, v: at.v }]
+        else setState({ tool: 'move' })
+        actions.updateLayer(layer.id, { key })
+      }
+      return
+    }
     if (s.tool === 'brush' && layer) {
       paint(layer, p, p, s.brushSize, s.brushErase)
       drag.current = { kind: 'brush', last: p }
@@ -202,7 +230,7 @@ export function Viewport() {
 
   return (
     <main className="viewport" ref={wrap}>
-      <div className={`stage ${brushing ? 'brushing' : ''}`} style={{ width: size, height: size }}>
+      <div className={`stage ${state.tool === 'move' ? '' : 'brushing'}`} style={{ width: size, height: size }}>
         <canvas
           ref={canvas}
           style={{ width: size, height: size }}
@@ -220,7 +248,9 @@ export function Viewport() {
         )}
       </div>
       <p className="viewport-hint">
-        {brushing
+        {state.tool === 'pick'
+          ? 'Clique na imagem sobre o fundo que deve sumir'
+          : brushing
           ? 'Pinte as áreas que saem da moldura'
           : 'Arraste para mover · roda do mouse para escalar · Shift + roda para girar'}
       </p>

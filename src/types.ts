@@ -22,6 +22,26 @@ export const isNeutral = (a: Adjust) =>
 export const adjustKey = (a: Adjust) =>
   `${a.hue}|${a.saturation}|${a.brightness}|${a.contrast}|${a.tint}|${a.tintAmount}`
 
+/** Remoção de fundo por cor: pixels próximos de `color` ficam transparentes. */
+export interface ColorKey {
+  enabled: boolean
+  color: string // #rrggbb
+  tolerance: number // 0..1, distância de cor removida por completo
+  softness: number // 0..1, faixa de transição até ficar opaco
+  /** true: remove só as áreas ligadas aos pontos clicados; ausente ou false: a cor na imagem inteira */
+  contiguous?: boolean
+  seeds?: { u: number; v: number }[] // pontos clicados, em fração da imagem
+}
+
+export const DEFAULT_KEY: ColorKey = {
+  enabled: false,
+  color: '#ffffff',
+  tolerance: 0.15,
+  softness: 0.08,
+  contiguous: true,
+  seeds: [],
+}
+
 /**
  * inside: recortada pela moldura, abaixo do aro
  * behind: sem recorte, abaixo do aro (asas, auras)
@@ -50,6 +70,7 @@ export interface Layer {
   flipX: boolean
   blend: GlobalCompositeOperation
   adjust: Adjust
+  key?: ColorKey // ausente em projetos salvos antes deste recurso
   placement: Placement
   popout: Popout
 }

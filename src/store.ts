@@ -5,7 +5,7 @@ export interface AppState {
   layers: Layer[] // índice 0 = camada do fundo
   frame: FrameState
   selectedId: string | null
-  tool: 'move' | 'brush'
+  tool: 'move' | 'brush' | 'pick'
   brushSize: number // diâmetro, fração do canvas
   brushErase: boolean
   exportSize: number
