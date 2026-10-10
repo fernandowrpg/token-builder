@@ -16,4 +16,4 @@ npm install
 npm run dev
 ```
 
-`npm run build` gera a pasta `dist/`, que pode ser hospedada em qualquer servidor estático.
+`npm run build` gera a pasta `docs/`, publicada pelo GitHub Pages (Settings → Pages → branch `main`, pasta `/docs`). Rode o build e faça commit de `docs/` a cada versão.

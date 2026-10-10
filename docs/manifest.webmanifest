@@ -1,0 +1,14 @@
+{
+  "name": "Token Builder",
+  "short_name": "Tokens",
+  "description": "Criador de tokens para Roll20 e Foundry VTT",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#16181d",
+  "theme_color": "#16181d",
+  "icons": [
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
