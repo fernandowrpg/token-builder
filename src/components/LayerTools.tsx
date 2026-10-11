@@ -71,7 +71,13 @@ export function LayerTools() {
           </button>
         ))}
       </div>
-      {open && (
+      {/* com pincel, borracha ou conta-gotas em uso o painel some para não cobrir o token */}
+      {tool !== 'move' && (
+        <button className="primary" onClick={() => setState({ tool: 'move' })}>
+          Concluir
+        </button>
+      )}
+      {open && tool === 'move' && (
         <div className="tool-pop">
           {open === 'place' && (
             <>
@@ -143,11 +149,8 @@ export function LayerTools() {
                   ) : (
                     <>
                       <p className="hint">Pinte sobre as partes da imagem que devem passar por cima da moldura.</p>
-                      <button
-                        className={tool === 'brush' ? 'primary wide' : 'wide'}
-                        onClick={() => setState({ tool: tool === 'brush' ? 'move' : 'brush' })}
-                      >
-                        {tool === 'brush' ? 'Concluir pintura' : 'Pintar no token'}
+                      <button className="wide" onClick={() => setState({ tool: 'brush' })}>
+                        Pintar no token
                       </button>
                       <div className="segmented">
                         <button className={brushErase ? '' : 'on'} onClick={() => setState({ brushErase: false })}>
@@ -195,12 +198,7 @@ export function LayerTools() {
                   : 'Remove a cor escolhida em toda a imagem, inclusive dentro do personagem.'}
               </p>
               <div className="row">
-                <button
-                  className={tool === 'pick' ? 'primary' : ''}
-                  onClick={() => setState({ tool: tool === 'pick' ? 'move' : 'pick' })}
-                >
-                  {tool !== 'pick' ? 'Conta-gotas' : key.contiguous ? 'Concluir' : 'Clique na cor…'}
-                </button>
+                <button onClick={() => setState({ tool: 'pick' })}>Conta-gotas</button>
                 {key.contiguous ? (
                   <button className="small" disabled={!key.seeds?.length} onClick={() => setKey({ seeds: [] })}>
                     Limpar {key.seeds?.length ?? 0} ponto(s)
@@ -246,11 +244,8 @@ export function LayerTools() {
               <p className="hint">
                 Apaga partes desta camada, inclusive da transposição. A imagem original não é alterada.
               </p>
-              <button
-                className={tool === 'erase' ? 'primary wide' : 'wide'}
-                onClick={() => setState({ tool: tool === 'erase' ? 'move' : 'erase' })}
-              >
-                {tool === 'erase' ? 'Concluir' : 'Usar borracha no token'}
+              <button className="wide" onClick={() => setState({ tool: 'erase' })}>
+                Usar borracha no token
               </button>
               <div className="segmented">
                 <button className={brushErase ? '' : 'on'} onClick={() => setState({ brushErase: false })}>
