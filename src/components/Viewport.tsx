@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
+import { LayerTools } from './LayerTools'
 import { applyLayerTransform, layerSize, renderToken } from '../render/compose'
 import { brushMask, layerRes, type MaskKind } from '../resources'
 import { actions, beginBrushEdit, getState, setState, useStore, type AppState } from '../store'
@@ -231,6 +232,7 @@ export function Viewport() {
 
   return (
     <main className="viewport" ref={wrap}>
+      <LayerTools />
       <div className={`stage ${state.tool === 'move' ? '' : 'brushing'}`} style={{ width: size, height: size }}>
         <canvas
           ref={canvas}
