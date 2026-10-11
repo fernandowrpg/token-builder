@@ -89,10 +89,13 @@ export interface LayerRes extends Adjustable {
   source: HTMLCanvasElement
   blob: Blob
   thumb: string
-  brush?: HTMLCanvasElement
+  brush?: HTMLCanvasElement // áreas que saem da moldura
+  erase?: HTMLCanvasElement // áreas apagadas com a borracha
   keyed?: HTMLCanvasElement // imagem com o fundo conectado removido
   keyedKey?: string
 }
+
+export type MaskKind = 'brush' | 'erase'
 
 export const layerRes = new Map<string, LayerRes>()
 
@@ -157,15 +160,15 @@ export function layerImage(layer: Layer): HTMLCanvasElement | null {
   return adjustedImage(r.source, layer.adjust, r, k)
 }
 
-/** Máscara pintada da transposição, no espaço da imagem da camada. */
-export function brushMask(id: string, create = false): HTMLCanvasElement | null {
+/** Máscara pintada (transposição ou borracha), no espaço da imagem da camada. */
+export function brushMask(id: string, create = false, kind: MaskKind = 'brush'): HTMLCanvasElement | null {
   const r = layerRes.get(id)
   if (!r) return null
-  if (!r.brush && create) {
+  if (!r[kind] && create) {
     const k = Math.min(1, MAX_BRUSH / Math.max(r.source.width, r.source.height))
-    r.brush = makeCanvas(Math.round(r.source.width * k), Math.round(r.source.height * k))
+    r[kind] = makeCanvas(Math.round(r.source.width * k), Math.round(r.source.height * k))
   }
-  return r.brush ?? null
+  return r[kind] ?? null
 }
 
 export function disposeLayer(id: string) {

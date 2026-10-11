@@ -1,12 +1,12 @@
 import { useSyncExternalStore } from 'react'
-import { disposeLayer, layerRes, makeCanvas } from './resources'
+import { disposeLayer, layerRes, makeCanvas, type MaskKind } from './resources'
 import { DEFAULT_ADJUST, type ExportFormat, type FrameState, type Layer } from './types'
 
 export interface AppState {
   layers: Layer[] // índice 0 = camada do fundo
   frame: FrameState
   selectedId: string | null
-  tool: 'move' | 'brush' | 'pick'
+  tool: 'move' | 'brush' | 'pick' | 'erase'
   brushSize: number // diâmetro, fração do canvas
   brushErase: boolean
   exportSize: number
@@ -54,7 +54,7 @@ interface Snap {
   layers: Layer[]
   frame: FrameState
   selectedId: string | null
-  brush?: { id: string; image: HTMLCanvasElement | null } // máscara de pincel naquele momento
+  brush?: { id: string; kind: MaskKind; image: HTMLCanvasElement | null } // máscara pintada naquele momento
 }
 
 const LIMIT = 100
@@ -65,19 +65,19 @@ const future: Snap[] = []
 let lastChange = 0
 let replaying = false
 
-function copyBrush(id: string) {
-  const src = layerRes.get(id)?.brush
+function copyBrush(id: string, kind: MaskKind) {
+  const src = layerRes.get(id)?.[kind]
   if (!src) return null
   const c = makeCanvas(src.width, src.height)
   c.getContext('2d')!.drawImage(src, 0, 0)
   return c
 }
 
-const snap = (brushId?: string): Snap => ({
+const snap = (brushId?: string, kind: MaskKind = 'brush'): Snap => ({
   layers: state.layers,
   frame: state.frame,
   selectedId: state.selectedId,
-  brush: brushId ? { id: brushId, image: copyBrush(brushId) } : undefined,
+  brush: brushId ? { id: brushId, kind, image: copyBrush(brushId, kind) } : undefined,
 })
 
 function record(s: Snap) {
@@ -96,19 +96,19 @@ function collect() {
 /** Faz a próxima mudança virar um passo próprio, mesmo logo após outra. */
 const step = () => (lastChange = 0)
 
-/** Registra o estado antes de um traço de pincel, que altera a máscara fora do estado. */
-export function beginBrushEdit(layerId: string) {
-  record(snap(layerId))
+/** Registra o estado antes de um traço de pincel ou borracha, que altera a máscara fora do estado. */
+export function beginBrushEdit(layerId: string, kind: MaskKind = 'brush') {
+  record(snap(layerId, kind))
   step()
 }
 
 function replay(from: Snap[], to: Snap[]) {
   const s = from.pop()
   if (!s) return
-  to.push(snap(s.brush?.id))
+  to.push(snap(s.brush?.id, s.brush?.kind))
   if (s.brush) {
     const r = layerRes.get(s.brush.id)
-    if (r) r.brush = s.brush.image ?? undefined
+    if (r) r[s.brush.kind] = s.brush.image ?? undefined
   }
   const sel = s.layers.find((l) => l.id === s.selectedId)
   const canBrush = sel?.placement === 'popout' && sel.popout.mode === 'brush'

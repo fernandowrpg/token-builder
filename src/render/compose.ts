@@ -38,6 +38,16 @@ function drawInLayerSpace(c: Ctx, layer: Layer, S: number, img: HTMLCanvasElemen
   c.restore()
 }
 
+/** Desenha a imagem da camada já sem as áreas apagadas com a borracha. */
+function drawLayer(c: Ctx, layer: Layer, S: number, img: HTMLCanvasElement) {
+  drawInLayerSpace(c, layer, S, img, img)
+  const erased = brushMask(layer.id, false, 'erase')
+  if (!erased) return
+  c.globalCompositeOperation = 'destination-out'
+  drawInLayerSpace(c, layer, S, erased, img)
+  c.globalCompositeOperation = 'source-over'
+}
+
 function drawInFrameBox(c: Ctx, img: CanvasImageSource, frame: FrameState, S: number) {
   const fs = frame.scale * S
   c.save()
@@ -106,7 +116,7 @@ export function renderToken(ctx: Ctx, S: number, layers: Layer[], frame: FrameSt
     const img = layerImage(layer)
     if (!img || layer.placement === 'front') continue
     const c = scratchCtx(S)
-    drawInLayerSpace(c, layer, S, img, img)
+    drawLayer(c, layer, S, img)
     if (layer.placement !== 'behind') clipToFrame(c)
     flush(layer.opacity, layer.blend)
   }
@@ -122,11 +132,11 @@ export function renderToken(ctx: Ctx, S: number, layers: Layer[], frame: FrameSt
     if (!img) continue
     if (layer.placement === 'front') {
       const c = scratchCtx(S)
-      drawInLayerSpace(c, layer, S, img, img)
+      drawLayer(c, layer, S, img)
       flush(layer.opacity, layer.blend)
     } else if (layer.placement === 'popout') {
       const c = scratchCtx(S)
-      drawInLayerSpace(c, layer, S, img, img)
+      drawLayer(c, layer, S, img)
       if (layer.popout.mode === 'line') {
         keepLineSide(c, layer, S)
       } else {

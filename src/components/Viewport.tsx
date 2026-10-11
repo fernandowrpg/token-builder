@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { applyLayerTransform, layerSize, renderToken } from '../render/compose'
-import { brushMask, layerRes } from '../resources'
+import { brushMask, layerRes, type MaskKind } from '../resources'
 import { actions, beginBrushEdit, getState, setState, useStore, type AppState } from '../store'
 import { DEFAULT_KEY, type Layer } from '../types'
 
@@ -42,8 +42,8 @@ function pickColor(layer: Layer, p: Point) {
 }
 
 /** Pinta (ou apaga) um traço na máscara de transposição, em coordenadas do canvas. */
-function paint(layer: Layer, from: Point, to: Point, size: number, erase: boolean) {
-  const mask = brushMask(layer.id, true)
+function paint(layer: Layer, from: Point, to: Point, size: number, erase: boolean, kind: MaskKind) {
+  const mask = brushMask(layer.id, true, kind)
   const src = layerRes.get(layer.id)?.source
   if (!mask || !src) return
   const { w, h } = layerSize(layer, src.width, src.height, 1)
@@ -77,8 +77,8 @@ function drawOverlay(ctx: CanvasRenderingContext2D, S: number, s: AppState) {
   const { w, h } = layerSize(layer, src.width, src.height, S)
   const line = Math.max(1, S / 500)
 
-  if (s.tool === 'brush') {
-    const mask = brushMask(layer.id)
+  if (s.tool === 'brush' || s.tool === 'erase') {
+    const mask = brushMask(layer.id, false, s.tool)
     if (mask) {
       ctx.save()
       ctx.globalAlpha = 0.4
@@ -190,9 +190,9 @@ export function Viewport() {
       }
       return
     }
-    if (s.tool === 'brush' && layer) {
-      beginBrushEdit(layer.id)
-      paint(layer, p, p, s.brushSize, s.brushErase)
+    if ((s.tool === 'brush' || s.tool === 'erase') && layer) {
+      beginBrushEdit(layer.id, s.tool)
+      paint(layer, p, p, s.brushSize, s.brushErase, s.tool)
       drag.current = { kind: 'brush', last: p }
       actions.touch()
     } else {
@@ -221,13 +221,13 @@ export function Viewport() {
     if (d.kind === 'move') {
       actions.updateLayer(layer.id, { x: d.x + p.x - d.start.x, y: d.y + p.y - d.start.y })
     } else {
-      paint(layer, d.last, p, s.brushSize, s.brushErase)
+      paint(layer, d.last, p, s.brushSize, s.brushErase, s.tool === 'erase' ? 'erase' : 'brush')
       d.last = p
       actions.touch()
     }
   }
 
-  const brushing = state.tool === 'brush'
+  const brushing = state.tool === 'brush' || state.tool === 'erase'
 
   return (
     <main className="viewport" ref={wrap}>
@@ -252,7 +252,9 @@ export function Viewport() {
         {state.tool === 'pick'
           ? 'Clique na imagem sobre o fundo que deve sumir'
           : brushing
-          ? 'Pinte as áreas que saem da moldura'
+          ? state.tool === 'erase'
+            ? 'Passe a borracha sobre o que não deve aparecer'
+            : 'Pinte as áreas que saem da moldura'
           : 'Arraste para mover · roda do mouse para escalar · Shift + roda para girar'}
       </p>
     </main>

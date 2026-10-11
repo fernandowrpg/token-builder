@@ -13,6 +13,7 @@ interface SavedProject {
   exportFormat: ExportFormat
   images: Record<string, Blob>
   brushes: Record<string, Blob>
+  erases?: Record<string, Blob> // ausente em projetos salvos antes da borracha
 }
 
 export async function addImageLayer(blob: Blob, name: string) {
@@ -87,12 +88,14 @@ async function saveProject() {
     exportFormat: s.exportFormat,
     images: {},
     brushes: {},
+    erases: {},
   }
   for (const l of s.layers) {
     const r = layerRes.get(l.id)
     if (!r) continue
     saved.images[l.id] = r.blob
     if (r.brush) saved.brushes[l.id] = await canvasBlob(r.brush)
+    if (r.erase) saved.erases![l.id] = await canvasBlob(r.erase)
   }
   await db.put('kv', saved, 'project')
 }
@@ -107,11 +110,13 @@ async function loadProject() {
     try {
       const source = await decodeImage(blob)
       const brushBlob = saved.brushes[l.id]
+      const eraseBlob = saved.erases?.[l.id]
       layerRes.set(l.id, {
         source,
         blob,
         thumb: makeThumb(source, source.width, source.height),
         brush: brushBlob ? await decodeImage(brushBlob) : undefined,
+        erase: eraseBlob ? await decodeImage(eraseBlob) : undefined,
       })
       layers.push(l)
     } catch (err) {

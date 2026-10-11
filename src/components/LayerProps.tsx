@@ -39,6 +39,13 @@ export function LayerProps() {
     set({ popout: { ...layer.popout, ...patch } })
     if (patch.mode === 'line') setState({ tool: 'move' })
   }
+  const clearErase = () => {
+    const mask = brushMask(layer.id, false, 'erase')
+    if (!mask) return
+    beginBrushEdit(layer.id, 'erase')
+    mask.getContext('2d')!.clearRect(0, 0, mask.width, mask.height)
+    actions.touch()
+  }
   const fillBrush = (fill: boolean) => {
     beginBrushEdit(layer.id)
     const mask = brushMask(layer.id, true)
@@ -204,6 +211,35 @@ export function LayerProps() {
           unit="%"
           onChange={(v) => setKey({ softness: v / 100 })}
         />
+      </Section>
+
+      <Section title="Borracha">
+        <p className="hint">Apaga partes desta camada, inclusive da transposição. A imagem original não é alterada.</p>
+        <button
+          className={tool === 'erase' ? 'primary wide' : 'wide'}
+          onClick={() => setState({ tool: tool === 'erase' ? 'move' : 'erase' })}
+        >
+          {tool === 'erase' ? 'Concluir' : 'Usar borracha no token'}
+        </button>
+        <div className="segmented">
+          <button className={brushErase ? '' : 'on'} onClick={() => setState({ brushErase: false })}>
+            Apagar
+          </button>
+          <button className={brushErase ? 'on' : ''} onClick={() => setState({ brushErase: true })}>
+            Restaurar
+          </button>
+        </div>
+        <Slider
+          label="Tamanho"
+          value={brushSize * 100}
+          min={1}
+          max={40}
+          unit="%"
+          onChange={(v) => setState({ brushSize: v / 100 })}
+        />
+        <button className="small" onClick={clearErase}>
+          Restaurar tudo
+        </button>
       </Section>
 
       <Section title="Enquadramento">
